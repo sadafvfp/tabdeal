@@ -19,9 +19,7 @@ def user_deposit(request):
     serializer = UserDepositSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     seller = Seller.objects.get(user=request.user)
-    Deposit.objects.create(
-        amount=serializer.validated_data["amount"], seller=seller
-    )
+    Deposit.objects.create(amount=serializer.validated_data["amount"], seller=seller)
     return Response(
         {"detail": "inserted successfully witing for admin to approve it"},
         status=status.HTTP_200_OK,

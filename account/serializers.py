@@ -1,8 +1,7 @@
 from rest_framework import serializers
-from .models import Seller, Deposite, Widraw
+from .models import Seller, Deposit, Withdraw
 from django.contrib.auth.models import User
 from rest_framework.exceptions import ValidationError
-
 
 
 class SellerSerializer(serializers.ModelSerializer):
@@ -11,9 +10,9 @@ class SellerSerializer(serializers.ModelSerializer):
         fields = ["id", "user", "balance"]
 
 
-class UserDepositeSerializer(serializers.ModelSerializer):
+class UserDepositSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Deposite
+        model = Deposit
         fields = [
             "amount",
         ]
@@ -23,15 +22,15 @@ class UserDepositeSerializer(serializers.ModelSerializer):
             raise ValidationError(detail="worng amount")
 
 
-class AdminDepositeSerializer(serializers.ModelSerializer):
+class AdminDepositSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Deposite
+        model = Deposit
         fields = ["amount", "status", "seller", "timestamp"]
 
 
-class UserWidrawSerializer(serializers.ModelSerializer):
+class UserWithdrawSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Widraw
+        model = Withdraw
         fields = ["amount", "phone"]
 
     def validate_amount(self, amount):
