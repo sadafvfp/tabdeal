@@ -9,7 +9,7 @@ from .serializers import *
 from rest_framework.response import Response
 from rest_framework import viewsets, mixins, status
 from django.db import transaction
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.db.models import F
 
 
@@ -31,7 +31,7 @@ class AdminDepositView(
 ):
     queryset = Deposit.objects.all()
     serializer_class = AdminDepositSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsAdminUser]
 
     def partial_update(self, request, *args, **kwargs):
         return Response(
