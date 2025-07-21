@@ -11,7 +11,7 @@ from rest_framework import viewsets, mixins, status
 from django.db import transaction
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.db.models import F
-
+from rest_framework.decorators import action
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -27,33 +27,24 @@ def user_deposit(request):
 
 
 class AdminDepositView(
-    mixins.ListModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet
+    mixins.ListModelMixin, viewsets.GenericViewSet
 ):
     queryset = Deposit.objects.all()
     serializer_class = AdminDepositSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
 
-    def partial_update(self, request, *args, **kwargs):
-        return Response(
-            {"detail": "PATCH method not allowed."},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED,
-        )
+    @action(methods=["POST"],detail=True,url_path="deposit-approve")
+    def approve(self, request, *args, **kwargs):
+        deposit = self.get_object()
 
-    def update(self, request, *args, **kwargs):
-        pk = kwargs.get("pk")
         with transaction.atomic():
-            try:
-                instance = Deposit.objects.get(pk=pk, status="pending")
-            except Deposit.DoesNotExist:
-                return Response(
-                    {"detail": "Not found or not in pending status."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+            
+            result = self.queryset.filter(pk=deposit.id, status="pending").update(status = 'approved')
+            if result != 1:
+                raise ValidationError("already approved")
 
-            instance.status = "approved"
-            instance.save()
-            Seller.objects.filter(id=instance.seller_id).update(
-                balance=F("balance") + instance.amount
+            Seller.objects.filter(pk=deposit.seller_id).update(
+                balance=F("balance") + deposit.amount
             )
             return Response(
                 {"detail": "Deposit approved and seller balance updated."},
@@ -68,7 +59,7 @@ def charge_phone(request):
     serializer.is_valid(raise_exception=True)
     amount = serializer.validated_data["amount"]
     phone = serializer.validated_data["phone"]
-    seller = Seller.objects.get(user=request.user)
+    seller = Seller.objects.filter(user=request.user)
     if amount > seller.balance:
         return Response(
             {"detail": "it;s more than your balance"},

@@ -27,6 +27,11 @@ class AdminDepositSerializer(serializers.ModelSerializer):
         model = Deposit
         fields = ["amount", "status", "seller", "timestamp"]
 
+# class AdminDepositApproveSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Deposit
+#         fields = ["amount",  "seller"]
+#         read_only_fields=["seller"]
 
 class UserWithdrawSerializer(serializers.ModelSerializer):
     class Meta:
