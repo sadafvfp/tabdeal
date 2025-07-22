@@ -24,7 +24,7 @@ class Deposit(models.Model):
 
 
 class Withdraw(models.Model):
-    phone = models.IntegerField()
+    phone = models.CharField(max_length=11)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     seller = models.ForeignKey(Seller, on_delete=models.DO_NOTHING)
     timestamp = models.DateTimeField(auto_now_add=True)

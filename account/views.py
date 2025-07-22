@@ -13,6 +13,7 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.db.models import F
 from rest_framework.decorators import action
 
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def user_deposit(request):
@@ -21,25 +22,25 @@ def user_deposit(request):
     seller = Seller.objects.get(user=request.user)
     Deposit.objects.create(amount=serializer.validated_data["amount"], seller=seller)
     return Response(
-        {"detail": "inserted successfully witing for admin to approve it"},
+        {"detail": "inserted successfully waiting for admin to approve it"},
         status=status.HTTP_200_OK,
     )
 
 
-class AdminDepositView(
-    mixins.ListModelMixin, viewsets.GenericViewSet
-):
+class AdminDepositView(mixins.ListModelMixin, viewsets.GenericViewSet):
     queryset = Deposit.objects.all()
     serializer_class = AdminDepositSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
 
-    @action(methods=["POST"],detail=True,url_path="deposit-approve")
+    @action(methods=["POST"], detail=True, url_path="approve")
     def approve(self, request, *args, **kwargs):
         deposit = self.get_object()
 
         with transaction.atomic():
-            
-            result = self.queryset.filter(pk=deposit.id, status="pending").update(status = 'approved')
+
+            result = self.queryset.filter(pk=deposit.id, status="pending").update(
+                status="approved"
+            )
             if result != 1:
                 raise ValidationError("already approved")
 
@@ -55,21 +56,22 @@ class AdminDepositView(
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def charge_phone(request):
-    serializer = UserWithdrawSerializer(request.data)
+    serializer = UserWithdrawSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
+
     amount = serializer.validated_data["amount"]
     phone = serializer.validated_data["phone"]
-    seller = Seller.objects.filter(user=request.user)
-    if amount > seller.balance:
-        return Response(
-            {"detail": "it;s more than your balance"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+
+    seller = Seller.objects.get(user=request.user)
     with transaction.atomic():
-        Seller.objects.filter(id=seller.id).update(balance=F("balance") - amount)
+        result = Seller.objects.filter(id=seller.id, balance__gt=amount).update(
+            balance=F("balance") - amount
+        )
+        if result != 1:
+            raise ValidationError("couldn't charge the provided phone number")
         Withdraw.objects.create(seller=seller, amount=amount, phone=phone)
 
         return Response(
-            {"detail": "Deposit approved and seller balance updated."},
+            {"detail": "Phone charged and balance updated."},
             status=status.HTTP_200_OK,
         )
