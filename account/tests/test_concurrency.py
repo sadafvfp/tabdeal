@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase,TransactionTestCase
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 from account.models import Seller, Deposit, Withdraw
@@ -6,7 +6,7 @@ from django.urls import reverse
 from decimal import Decimal
 import threading
 from random import choice
-
+from django.db import transaction, connection
 
 USER_DEPOSIT_URL = reverse("user_deposit")
 USER_WITHDRAW_URL = reverse("charge_phone")
@@ -17,7 +17,7 @@ def approve_deposit_url(pk):
     return reverse("admin_deposit-approve", kwargs={"pk": pk})
 
 
-class ComplexTransactionTest(TestCase):
+class RaceConditionTest(TransactionTestCase):
     def setUp(self):
         # create users
         self.user1 = User.objects.create_user(username="seller1", password="test123")
@@ -43,24 +43,27 @@ class ComplexTransactionTest(TestCase):
         self.admin_client.force_authenticate(self.admin)
 
     def test_10_deposits_and_1000_concurrent_withdrawals(self):
-        """
-        ● دو فروشنده داشته باشد
-        ● ۱۰ افزایش اعتبار ثبت کند
-        ● ۱۰۰۰ فروش را تست کند با رقابت (race condition)
-        """
+     
         # 🔹 ایجاد 10 افزایش اعتبار برای seller1
         for _ in range(10):
             deposit = Deposit.objects.create(
                 seller=self.seller1, amount=Decimal("1000.00"), status="pending"
             )
-            deposit.refresh_from_db()
+      
 
         # 🔹 تایید همزمان تمام افزایش اعتبارها
         deposits = list(Deposit.objects.filter(status="pending"))
 
         def approve_deposit(deposit):
-            result = self.admin_client.post(approve_deposit_url(deposit.id))
-            print(result)
+            try:
+                result = self.admin_client.post(approve_deposit_url(deposit.id))
+                print(result.data)
+            finally:
+                # Force close the DB connection used by this thread
+                connection.close()
+
+        # for d in deposits:
+        #     approve_deposit(d)
 
         threads = [threading.Thread(target=approve_deposit, args=[d]) for d in deposits]
         for t in threads:
